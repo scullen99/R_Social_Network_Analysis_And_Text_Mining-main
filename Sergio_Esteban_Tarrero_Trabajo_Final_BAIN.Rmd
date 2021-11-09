@@ -1,0 +1,384 @@
+---
+title: "Trabajo Final BAIN"
+author: "Sergio Esteban Tarrero"
+date: "21/5/2021"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r}
+setwd("C:/Users/Sergio/Desktop/Trabajo_Final_BAIN")
+```
+
+```{r}
+getwd()
+```
+
+```{r}
+load("enron_data_revised.rda")
+```
+
+# Cargo las librerias que voy a utilizar
+```{r echo = FALSE}
+# Social Network Analysis - SNA
+library(igraph)
+library(gplots)
+# Text Mining
+library(quanteda)
+library(quanteda.textplots)
+library(data.table)
+library(stringr)
+# Tópicos
+library(topicmodels)
+library(quanteda.textstats)
+# Creación del Workcloud
+library(RColorBrewer)
+library(wordcloud)
+# Análisis de Sentimientos
+library(SentimentAnalysis)
+```
+
+# Parte 1 - SNA - Social Network Analysis
+
+# Creación del grafo 
+```{r}
+grafo_trabajo <- graph.data.frame(edges, 
+                            directed = TRUE,
+                            vertices = nodes)
+```
+
+# Información del grafo creado
+```{r}
+class(grafo_trabajo)
+summary(grafo_trabajo)
+```
+
+# Exportar el grafo creado
+```{r}
+write.graph(grafo_trabajo,
+            file = "Grafo_Trabajo_BAIN_Sergio_Esteban_Tarrero.graphml",
+            format = "graphml")
+```
+
+# Grafo pasado por Gephi:
+```{r echo=FALSE, fig.cap = "Grafo_Gephi"}
+knitr::include_graphics("Grafo_Gephi.png")
+```
+
+### Cálculo de métricas individuales
+
+# Cálculo grado
+``` {r}
+# 2.1 Cálculo Grado (total, dado que es un grafo no dirigido)
+nodes$degree_total <- degree(grafo_trabajo, v = V(grafo_trabajo), mode = c("total"))
+
+nodes$degree_total
+```
+
+# Cálculo Betweenness
+``` {r}
+nodes$betweenness <- betweenness(grafo_trabajo, v=V(grafo_trabajo))
+
+nodes$betweenness
+```
+
+# Cálculo Reach 2 step
+``` {r}
+nodes$reach_2_step <- neighborhood.size(grafo_trabajo, order = 2,
+                                        nodes = V(grafo_trabajo), mode  = c("all"))
+
+nodes$reach_2_step
+```
+
+# Cálculo Transitivity
+```{r}
+transitivity(grafo_trabajo, type="global") 
+
+transitivity(as.undirected(grafo_trabajo, mode="collapse")) 
+
+transitivity(grafo_trabajo, type="local") 
+hist(transitivity(grafo_trabajo, type="local"))
+```
+
+# Vemos la data que hay
+```{r}
+ls()
+```
+
+# Añado una columna al grafo que vamos a generar con los datos obtenidos de la 
+Betweenness, que hemos calculado antes
+```{r}
+nodes$betweenness <- betweenness(grafo_trabajo, v=V(grafo_trabajo))
+V(grafo_trabajo)$betweenness<-nodes$betweenness
+```
+
+# Exporta el grafo con la columna Betweenness añadida
+```{r}
+write.graph(grafo_trabajo, file="Grafo_Gephi_Con_Betweenness.graphml", format="graphml")
+```
+
+# Grafo organizado por comunidades:
+```{r echo=FALSE, fig.cap = "Grafo_Gephi_Con_Betweenness"}
+knitr::include_graphics("Grafo_Gephi_Con_Betweenness.png")
+```
+
+--------------------------------------------------------------------------------
+
+# Parte 2 - TM - Text Mining
+
+# En este apartado vamos a ver de que han hablado los trabajadores de Enron,
+más específico, los CEOS de la empresa
+
+```{r}
+ls()
+```
+
+```{r}
+summary(nodes)
+```
+
+```{r}
+summary(edges.full)
+```
+
+# CEOS de Enron, Información de los CEOS, Matriz con datos
+# Para sacar los mensajes necesito el correo electrónico "Email_id"
+```{r}
+ceos_con_info <- nodes[nodes$status == "CEO",]
+ceos_enron <- nodes[nodes$status == "CEO", "Email_id"]
+
+ceos_con_info
+```
+
+# Voy a trabajar con "ceos_enron" porque el "ceos_con_info" es para dar más datos
+de los CEOS (Incluye el grado, betweeness y reach 2 step)
+
+# Mensajes Enviados
+```{r}
+mensajes_enviados <- edges.full$body[edges.full$sender %in% ceos_enron]
+```
+
+# Cantidad de mensajes mandados
+```{r}
+length(mensajes_enviados)
+```
+
+# Muestra algunos mensajes completos mandados por los CEOS
+```{r}
+head(mensajes_enviados)
+```
+
+# Mensajes Recibidos
+```{r}
+mensajes_recibidos <- edges.full$body[edges.full$receiver %in% ceos_enron]
+```
+
+# Cantidad de mensajes recibidos
+```{r}
+length(mensajes_recibidos)
+```
+
+# Muestra algunos mensajes completos recibidos por los CEOS
+```{r}
+head(mensajes_recibidos)
+```
+
+# Juntar los mensajes recibidos y mandados
+```{r}
+todos_mensajes <- c(mensajes_recibidos, mensajes_enviados)
+
+# Número total de mensajes recibidos y mandados
+length(todos_mensajes)
+```
+
+--------------------------------------------------------------------------------
+
+# Limpieza de texto
+
+# Poner todo el texto en letra minúscula
+```{r}
+todos_mensajes <- tolower(todos_mensajes)
+
+head(todos_mensajes)
+```
+
+# Limpieza de caracteres
+```{r}
+todos_mensajes <- str_replace_all(todos_mensajes, pattern = "[:;,]", " ")
+todos_mensajes <- str_replace_all(todos_mensajes, pattern = "[-+*/]", " ")
+todos_mensajes <- str_replace_all(todos_mensajes, pattern = "[?!\"]", " ")
+todos_mensajes <- str_replace_all(todos_mensajes, pattern = "\\\\", " ")
+todos_mensajes <- str_replace_all(todos_mensajes, pattern = "\t", " ")
+todos_mensajes <- str_replace_all(todos_mensajes, pattern = "&", " ")
+todos_mensajes <- str_replace_all(todos_mensajes, pattern = "  ", " ")
+todos_mensajes <- str_replace_all(todos_mensajes, pattern = "   ", " ")
+
+head(todos_mensajes)
+```
+
+# Creación del corpus utilizando la librería Quanteda
+```{r}
+corpus_ceos <- corpus(todos_mensajes)
+
+summary(corpus_ceos)
+```
+
+# Eliminar cosas inncecesarias (urls, numeros sueltos, signos de puntuación)
+```{r}
+palabras <- tokens(corpus_ceos, 
+                   remove_punct = TRUE,
+                   remove_numbers = TRUE,
+                   remove_url = TRUE)
+```
+
+```{r}
+class(palabras)
+```
+
+# Palabras más repetidas en los correos
+```{r}
+myStemMat <- dfm(palabras)
+
+myStemMat <- dfm_remove(myStemMat, stopwords("english"))
+
+topfeatures(myStemMat, 100)
+
+mystopwords <- c(stopwords("english"),
+                 "=", "s", ">", "<",
+                 "e", "j", "d", "w", "t", "$")
+
+myStemMat <- dfm_remove(myStemMat, mystopwords)
+
+topfeatures(myStemMat, 100)
+```
+ 
+-------------------------------------------------------------------------------- 
+ 
+# Generación de Bigramas y Trigramas
+
+```{r}
+palabras2 <- tokens_select(palabras, pattern = mystopwords, selection = "remove")
+
+palabras3 <- tokens_ngrams(palabras2, n = 2:3)
+
+matriz2 <- dfm(palabras3)
+```
+
+# Las 100 palabras más repetidas
+```{r}
+topfeatures(matriz2, 100)
+```
+
+# Workcloud
+```{r}
+set.seed(100)
+png(filename = "Wordcloud_Enron_Trabajo_Final_BAIN.png",
+    width = 5000, 
+    height = 5000)
+textplot_wordcloud(matriz2, 
+                   min_count = 20, 
+                   random_order = FALSE,
+                   rotation = 0, 
+                   color = RColorBrewer::brewer.pal(8, "Dark2"))
+
+dev.off()
+```
+
+# Workcloud creada:
+```{r echo=FALSE, fig.cap = "Wordcloud_Enron"}
+knitr::include_graphics("Wordcloud_Enron_Trabajo_Final_BAIN.png")
+```
+
+# Tópicos:
+```{r}
+time1 <- Sys.time()
+
+quant_dfm <- dfm_trim(matriz2, 
+                      min_termfreq = 20)
+
+set.seed(100)
+if (require(topicmodels)) {
+  my_lda_fit12 <- LDA(convert(quant_dfm, to = "topicmodels"), 
+                      k = 6)
+  get_terms(my_lda_fit12, 5)
+}
+
+time2 <- Sys.time()
+print(time2-time1)
+```
+
+```{r}
+qq <- my_lda_fit12@beta
+```
+
+```{r}
+class(qq)
+```
+
+```{r}
+dim(qq)
+```
+
+```{r}
+colnames(qq) <- my_lda_fit12@terms
+
+qq[, 5:10]
+```
+
+# Visualización de texto
+```{r}
+png(file = "Visualizacion_Texto.png",
+    width = 5000,
+    height = 5000,
+    res = 300,
+    bg = "black")
+
+par(mfrow=c(6, 1))
+
+for (k in 1:length(qq[,1])) {
+  
+  topic1 <- qq[k,]
+  
+  v <- topic1
+  
+  # utilizando rank pasamos el beta numérico a orden (entero, positivo)
+  d <- data.frame(word = names(v), rank= rank(v))
+  
+  # ordenamos descendente (por defecto -sin el "-" es ascendente)
+  d <- d[order(-d$rank),]
+  
+  # normalizamos (parecido a una frecuencia de palabras) +100 para que tenga rango amplio
+  d$freq <- d$rank - max(d$rank) + 100
+  
+  # Now with a prettier layout
+  # baed on code published in
+  # http://onertipaday.blogspot.com.es/2011/07/word-cloud-in-r.html
+  #plot.new()
+  
+  pal2 <- brewer.pal(11,"Spectral")
+  wordcloud(d$word,
+            d$freq, 
+            # scale nos da la diferencia relativa (máx mín) entre tamaños de palabras
+            scale = c(1.2, 0.25),
+            # max.words las que quepan
+            max.words = 200, 
+            random.order = FALSE, 
+            rot.per = 0, 
+            colors = pal2,
+            random.clor = TRUE)
+  title(main = paste(k),
+        font = 10,
+        col.main = "yellow")
+}
+
+dev.off()
+```
+
+```{r echo=FALSE, fig.cap = "Visualizacion_Texto"}
+knitr::include_graphics("Visualizacion_Texto.png")
+```
+
+
+
+
