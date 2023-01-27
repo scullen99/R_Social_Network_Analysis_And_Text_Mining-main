@@ -1,4 +1,4 @@
-# Social Network Analysis And Text Mining
+# Social Network Analysis Enron
 
 - [Social Network Analysis And Text Mining](#social-network-analysis-and-text-mining)
   - [Español](#español)
@@ -15,30 +15,7 @@ En el proyecto se utilizan las librerías de Igraph y Quanteda.
 - Documentación:
   - [Igraph](https://igraph.org/r/)
   - [Cuanteda](https://quanteda.io/)
-
- ```R
- Librerías utilizadas:
-
-# Análisis de Redes Sociales
-library(igraph)
-library(gplots)
-# Minería de Texto
-library(quanteda)
-library(quanteda.textplots)
-library(data.table)
-library(stringr)
-# Tópicos
-library(topicmodels)
-library(quanteda.textstats)
-# Creación del Workcloud
-library(RColorBrewer)
-library(wordcloud)
-# Análisis de Sentimientos
-library(SentimentAnalysis)
-
-```
-
-
+  
 ---
 
 ## English
@@ -52,24 +29,4 @@ The project uses the Igraph and Quanteda libraries.
 - Documentation:
   - [Igraph](https://igraph.org/r/)
   - [Cuanteda](https://quanteda.io/)
-
- ```R
- Libraries used:
-
-# Social Network Analysis
-library(igraph)
-library(gplots)
-# Text Mining
-library(quanteda)
-library(quanteda.textplots)
-library(data.table)
-library(stringr)
-# Topics
-library(topicmodels)
-library(quanteda.textstats)
-# WordCloud Creation
-library(RColorBrewer)
-library(wordcloud)
-# Sentiment Analysis
-library(SentimentAnalysis)
-```
+  
